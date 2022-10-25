@@ -5,6 +5,10 @@ const wss = new WebSocket.WebSocketServer({port:8080}, ()=> { console.log('Serve
 
 var playerData = { "type" : "PlayerData" }
 
+function isString(x) {
+    return Object.prototype.toString.call(x) === "[object String]"
+}
+
 //=====WEBSOCKET FUNCTIONS======
 
 //Websocket function that managages connection with clients
@@ -22,10 +26,14 @@ wss.on('connection', function connection(client){
 
     //Method retrieves message from client
     client.on('message', (data) => {
-    	var dataJSON = JSON.parse(data)
 
-    	console.log("Player Message")
-    	console.log(dataJSON)
+        if (isString(data)) {
+
+            var dataJSON = JSON.parse(data)
+
+            console.log("Player Message")
+            console.log(dataJSON)
+        }
     })
 
     //Method notifies when client disconnects
