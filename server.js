@@ -12,14 +12,14 @@ function isString(x) {
 
 function BroadcastMsgToClients(msg, clientToSkip) {
 
-    console.log(`BroadcastMsgToClients() -- ${msg}`)
+    //console.log(`BroadcastMsgToClients() -- ${msg}`)
     for (player in playerData) {
         if (player === clientToSkip) {
-            console.log(`   Skipping -- ${player}`)
+           // console.log(`   Skipping -- ${player}`)
             continue;
         }
 
-        console.log(`       Sending to ${player}`)
+       // console.log(`       Sending to ${player}`)
         var currentClient = playerData[player]
         currentClient["Handle"].send(msg)
     }
@@ -73,9 +73,13 @@ wss.on('connection', function connection(client) {
             try {
 
                 var dataJSON = JSON.parse(data)
-                if (dataJSON.cmd != null && dataJSON.cmd === 'updatePos') {
-                    console.log(`Updating position for ${client.id}`)
-                    BroadcastMsgToClients(JSON.stringify(dataJSON), client.id);
+                if (dataJSON.cmd != null) {
+                   //// console.log(`Updating position for ${client.id}`)
+                    if (dataJSON.cmd === 'updatePos') {
+                        BroadcastMsgToClients(JSON.stringify(dataJSON), client.id);
+                    } else if (dataJSON.cmd === 'ping') {
+                        client.send(JSON.stringify(dataJSON));
+                    }
 
                 }
               //  console.log(`Player Message ----_> "${dataJSON.xPos}`)
@@ -90,8 +94,10 @@ wss.on('connection', function connection(client) {
 
     //Method notifies when client disconnects
     client.on('close', () => {
-        console.log('This Connection Closed!')
-        console.log("Removing Client: " + client.id)
+        console.log("Connection closed.  Removing Client: " + client.id)
+        BroadcastMsgToClients(`{"cmd": "removePlayer", "id": "${client.id}"}`)
+
+        delete playerData["" + client.id]
         currentClient.client = null
     })
 
