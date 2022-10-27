@@ -99,6 +99,15 @@ wss.on('connection', function connection(client) {
 
         delete playerData["" + client.id]
         currentClient.client = null
+
+        var numPlayers = 0
+        for (player in playerData) {
+            if (player == null) {
+                continuie;
+            }
+            numPlayers = numPlayers + 1
+        }
+        console.log(`${numPlayers} Connected`)
     })
 
 })
