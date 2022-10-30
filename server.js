@@ -79,7 +79,7 @@ function RemovePlayerFromRoom(clientId, player) {
     player.room = null
 }
 
-function BroadcastMsgToRoom(room, msg, sendingClient, sendingClientDisplayName) {
+function BroadcastMsgToRoom(room, msg, sendingClient, currentPlayer) {
     if (room == null) {
         return;
     }
@@ -90,7 +90,7 @@ function BroadcastMsgToRoom(room, msg, sendingClient, sendingClientDisplayName) 
        }
 
         var currentClient = playerData[client]
-        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${sendingClientDisplayName}", "msg": "${msg}"}`)
+        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${currentPlayer.displayName}", "msg": "${msg}"}`)
     }
 }
 
