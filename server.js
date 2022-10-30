@@ -79,7 +79,7 @@ function RemovePlayerFromRoom(clientId, player) {
     player.room = null
 }
 
-function BroadcastMsgToRoom(room, msg, sendingClient) {
+function BroadcastMsgToRoom(room, msg, sendingClient, sendingClientDisplayName) {
     if (room == null) {
         return;
     }
@@ -90,7 +90,7 @@ function BroadcastMsgToRoom(room, msg, sendingClient) {
        }
 
         var currentClient = playerData[client]
-        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${sendingClient.displayName}", "msg": "${msg}"}`)
+        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${sendingClientDisplayName}", "msg": "${msg}"}`)
     }
 }
 
@@ -147,7 +147,7 @@ wss.on('connection', function connection(client) {
                         console.log("Crash!")
                         forceExit = true
                     } else {
-                        BroadcastMsgToRoom(currentPlayer.room, dataJSON.msg, client.id)
+                        BroadcastMsgToRoom(currentPlayer.room, dataJSON.msg, client.id, currentPlayer)
                     }
                 }
                 else {
