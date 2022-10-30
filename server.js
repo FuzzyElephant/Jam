@@ -3,11 +3,23 @@ const WebSocket = require('ws');
 
 const wss = new WebSocket.WebSocketServer({ port: 8080 }, () => { console.log('Server Started') })
 
-//var playerData = { "type": "PlayerData" }
 var playerData = {}
+var roomList = {}
 
-function isString(x) {
-    return Object.prototype.toString.call(x) === "[object String]"
+function GetNumElements(someList) {
+    if (someList == null)
+        return 0;
+
+    var numElems = 0
+    for (item in someList) {
+        if (item == null) {
+            continue;
+        }
+console.log(`item = ${item}`)
+        numElems = numElems + 1
+    }
+
+    return numElems
 }
 
 function BroadcastMsgToClients(msg, clientToSkip) {
@@ -15,13 +27,70 @@ function BroadcastMsgToClients(msg, clientToSkip) {
     //console.log(`BroadcastMsgToClients() -- ${msg}`)
     for (player in playerData) {
         if (player === clientToSkip) {
-           // console.log(`   Skipping -- ${player}`)
             continue;
         }
 
-       // console.log(`       Sending to ${player}`)
         var currentClient = playerData[player]
-        currentClient["Handle"].send(msg)
+        currentClient["nethandle"].send(msg)
+    }
+}
+
+function FindRoom(roomCode, bCreateIfNotFound) {
+    console.log(`Looking for room.  Room code = ${roomCode}`)
+
+    var room = roomList["" + roomCode];
+    if (room != null) {
+        console.log(`       Room found. Num players = ${GetNumElements(room.Players)}`)
+        return room;
+    }
+
+    if (bCreateIfNotFound == false) {
+        return null;
+    }
+
+    console.log(`       Room not found.  Creating room`);
+    room = new Object();
+    room.roomCode = roomCode
+    roomList["" + roomCode] = room
+    room["players"] = new Object();
+    return room
+}
+
+function AddPlayerToRoom(clientId, player, room) {
+    console.log(`Adding ${player.displayName} to room ${room.roomCode}`)
+    room.players["" + clientId] = player
+    player.room = room;
+}
+
+function RemovePlayerFromRoom(clientId, player) {
+    if (player.room == null) {
+        return;
+    }
+
+    delete player.room.players["" + clientId]
+    var roomCode = player.room.roomCode;
+    console.log(`${player.displayName} left room ${roomCode}.  ${GetNumElements(player.room.players)} left`);
+
+    if (GetNumElements(player.room.players) === 0) {
+        console.log(`Deleting room ${roomCode}`)
+        delete roomList["" + roomCode]
+      //  roomList["" + roomCode] = null
+    }
+    player.room = null
+}
+
+function BroadcastMsgToRoom(room, msg, sendingClient) {
+    if (room == null) {
+        return;
+    }
+
+    for (client in room.players) {
+    //   if (client === sendingClient) {
+     //       continue;
+      //  }
+
+        var currentClient = playerData[client]
+        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "msg": "${msg}"}`)
     }
 }
 
@@ -37,9 +106,9 @@ wss.on('connection', function connection(client) {
 
     playerData["" + client.id] = new Object();
     var currentClient = playerData["" + client.id]
-    currentClient["Handle"] = client;
+    currentClient["nethandle"] = client;
 
-    currentClient["Handle"].send(`{"cmd": "addPlayer", "id": "${client.id}", "isLocalPlayer": "true"}`)
+    currentClient["nethandle"].send(`{"cmd": "addPlayer", "id": "${client.id}", "isLocalPlayer": "true"}`)
     BroadcastMsgToClients(`{"cmd": "addPlayer", "id": "${client.id}", "isLocalPlayer": "false"}`, client.id)
 
     for (player in playerData) {
@@ -47,49 +116,55 @@ wss.on('connection', function connection(client) {
             continue
         }
 
-        currentClient["Handle"].send(`{"cmd": "addPlayer", "id": "${player}", "isLocalPlayer": "false"}`)
+        currentClient["nethandle"].send(`{"cmd": "addPlayer", "id": "${player}", "isLocalPlayer": "false"}`)
     }
-
-  /*  for (player in playerData) {
-
-       // if (player["Handle"] != null)
-        console.log(`handling ${player}`)
-        var curClient = playerData[player]
-        if (player == client.id) {
-            curClient["Handle"].send(`{"id": "${client.id}", "isLocalPlayer": "true"}`)
-        }
-        else {
-            curClient["Handle"].send(`{"id": "${client.id}","isLocalPlayer": "false"}`)
-
-        }
-    }*/
 
     //Method retrieves message from client
     client.on('message', (data) => {
-      //  console.log(`Message recvd = ${data}`)
-    //    console.log(`type of is ${typeof data}`)
-        {
+        console.log(`Message recvd = ${data}`)
 
-            try {
+        var forceExit = false;
 
-                var dataJSON = JSON.parse(data)
-                if (dataJSON.cmd != null) {
-                   //// console.log(`Updating position for ${client.id}`)
-                    if (dataJSON.cmd === 'updatePos') {
-                        BroadcastMsgToClients(JSON.stringify(dataJSON), client.id);
-                    } else if (dataJSON.cmd === 'ping') {
-                        client.send(JSON.stringify(dataJSON));
+        try {
+            var currentPlayer = playerData["" + client.id]
+            var dataJSON = JSON.parse(data)
+
+            if (dataJSON.cmd != null) {
+
+                //// console.log(`Updating position for ${client.id}`)
+                if (dataJSON.cmd === 'updatePos') {
+                    BroadcastMsgToClients(JSON.stringify(dataJSON), client.id);
+                } else if (dataJSON.cmd === 'ping') {
+                    client.send(JSON.stringify(dataJSON))
+                } else if (dataJSON.cmd === 'findGame') {
+                    console.log(`Finding game ${data}`)
+                    currentPlayer.displayName = dataJSON.displayName;
+                    console.log(`Player name is ${currentPlayer.displayName}`)
+                    var room = FindRoom(dataJSON.roomCode, true)
+                    AddPlayerToRoom(client.id, currentPlayer, room)
+                } else if (dataJSON.cmd === 'chat') {
+                    if (dataJSON.msg === 'crash') {
+                        console.log("Crash!")
+                        forceExit = true
+                    } else {
+                        BroadcastMsgToRoom(currentPlayer.room, dataJSON.msg, client.id)
                     }
-
                 }
-              //  console.log(`Player Message ----_> "${dataJSON.xPos}`)
-              //  console.log(dataJSON)
-
-            } catch (e) {
-
+                else {
+                    console.log(`Cmd = ${cmd}`)
+                }
             }
+            else {
+                console.log("asdasdasd")
+            }
+        } catch (e) {
+            console.log(`Exception raised ${e}`)
         }
 
+        if (forceExit) {
+            console.log("Foring exit...")
+            throw('Force Quit')
+        }
     })
 
     //Method notifies when client disconnects
@@ -97,19 +172,21 @@ wss.on('connection', function connection(client) {
         console.log("Connection closed.  Removing Client: " + client.id)
         BroadcastMsgToClients(`{"cmd": "removePlayer", "id": "${client.id}"}`)
 
+        var curPlayer = playerData["" + client.id]
+        var room = curPlayer.room;
+
+        if (curPlayer.room != null) {
+            console.log(`       Removing player from room ${curPlayer.room.roomCode}`);
+            RemovePlayerFromRoom(client.id, curPlayer)
+        }
+
         delete playerData["" + client.id]
         currentClient.client = null
 
-        var numPlayers = 0
-        for (player in playerData) {
-            if (player == null) {
-                continuie;
-            }
-            numPlayers = numPlayers + 1
+        if (room != null) {
+            console.log(`${GetNumElements(playerData)} Connected.  # rooms = ${GetNumElements(roomList)}`);
         }
-        console.log(`${numPlayers} Connected`)
     })
-
 })
 
 wss.on('listening', () => {
