@@ -85,12 +85,12 @@ function BroadcastMsgToRoom(room, msg, sendingClient) {
     }
 
     for (client in room.players) {
-    //   if (client === sendingClient) {
-     //       continue;
-      //  }
+       if (client === sendingClient) {
+            continue;
+       }
 
         var currentClient = playerData[client]
-        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${currentClient.displayName}", "msg": "${msg}"}`)
+        currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${sendingClient.displayName}", "msg": "${msg}"}`)
     }
 }
 
