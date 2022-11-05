@@ -1,7 +1,7 @@
 var uuid = require('uuid-random');
 const WebSocket = require('ws');
 
-const wss = new WebSocket.WebSocketServer({ port: 8080 }, () => { console.log('Server Started') })
+const wss = new WebSocket.WebSocketServer({ port: 443 }, () => { console.log('Server Started') })
 
 var playerData = {}
 var roomList = {}
@@ -190,5 +190,5 @@ wss.on('connection', function connection(client) {
 })
 
 wss.on('listening', () => {
-    console.log('listening on 8080')
+    console.log('listening on 443')
 })

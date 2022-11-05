@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gamejamserver
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: gamejamserver
+  template:
+    metadata:
+      labels:
+         run: gamejamserver
+    spec:
+      containers:
+      - name: gamejamserver
+        image: icr.io/jamserver/gamejamserver:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 443
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gamejamserver-entrypoint
+ labels:
+    run: gamejamserver-entrypoint
+spec:
+  type: NodePort
+  selector:
+      run: gamejamserver-entrypoint
+  ports:
+  - port: 8080
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    protocol: TCP
+    name: https
+    nodePort:  30000
