@@ -1,7 +1,8 @@
 var uuid = require('uuid-random');
 const WebSocket = require('ws');
 
-const wss = new WebSocket.WebSocketServer({ port: 443 }, () => { console.log('Server Started') })
+var listenPort = 8080
+const wss = new WebSocket.WebSocketServer({ port: listenPort }, () => { console.log('Server Started') })
 
 var playerData = {}
 var roomList = {}
@@ -40,7 +41,7 @@ function FindRoom(roomCode, bCreateIfNotFound) {
 
     var room = roomList["" + roomCode];
     if (room != null) {
-        console.log(`       Room found. Num players = ${GetNumElements(room.Players)}`)
+        console.log(`       Room found. Num players = ${GetNumElements(room.players)}`)
         return room;
     }
 
@@ -79,7 +80,7 @@ function RemovePlayerFromRoom(clientId, player) {
     player.room = null
 }
 
-function BroadcastMsgToRoom(room, msg, sendingClient, currentPlayer) {
+function BroadcastChatMsgToRoom(room, msg, sendingClient, currentPlayer) {
     if (room == null) {
         return;
     }
@@ -91,6 +92,21 @@ function BroadcastMsgToRoom(room, msg, sendingClient, currentPlayer) {
 
         var currentClient = playerData[client]
         currentClient["nethandle"].send(`{"cmd": "chat", "id": "${sendingClient}", "displayName": "${currentPlayer.displayName}", "msg": "${msg}"}`)
+    }
+}
+
+function BroadcastMsgToRoom(room, msg, sendingClient, currentPlayer) {
+    if (room == null) {
+        return;
+    }
+
+    for (client in room.players) {
+        if (client === sendingClient) {
+            continue;
+        }
+
+        var currentClient = playerData[client]
+        currentClient["nethandle"].send(msg)
     }
 }
 
@@ -141,14 +157,22 @@ wss.on('connection', function connection(client) {
                     currentPlayer.displayName = dataJSON.displayName;
                     console.log(`Player name is ${currentPlayer.displayName}`)
                     var room = FindRoom(dataJSON.roomCode, true)
+
+                    if (GetNumElements(room.players) == 0) {
+                        console.log(`Making ${currentPlayer.displayName} room owner`)
+                        currentPlayer["nethandle"].send(`{"cmd": "enteredRoom", "IsOwner": "true"}`)
+                    }
                     AddPlayerToRoom(client.id, currentPlayer, room)
                 } else if (dataJSON.cmd === 'chat') {
                     if (dataJSON.msg === 'crash') {
                         console.log("Crash!")
                         forceExit = true
                     } else {
-                        BroadcastMsgToRoom(currentPlayer.room, dataJSON.msg, client.id, currentPlayer)
+                        BroadcastChatMsgToRoom(currentPlayer.room, dataJSON.msg, client.id, currentPlayer)
                     }
+                } else if (dataJSON.cmd === 'game') {
+                    console.log("Passing game msg");
+                    BroadcastMsgToRoom(currentPlayer.room, JSON.stringify(dataJSON), null, currentPlayer); 
                 }
                 else {
                     console.log(`Cmd = ${cmd}`)
@@ -190,5 +214,5 @@ wss.on('connection', function connection(client) {
 })
 
 wss.on('listening', () => {
-    console.log('listening on 443')
+    console.log(`listening on ${listenPort}`)
 })
