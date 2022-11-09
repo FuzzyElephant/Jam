@@ -1,7 +1,8 @@
 var uuid = require('uuid-random');
 const WebSocket = require('ws');
 
-var listenPort = 8080
+var serverVersion = 1
+var listenPort = 443
 const wss = new WebSocket.WebSocketServer({ port: listenPort }, () => { console.log('Server Started') })
 
 var playerData = {}
@@ -214,5 +215,6 @@ wss.on('connection', function connection(client) {
 })
 
 wss.on('listening', () => {
+    console.log(`jam server version ${serverVersion}`)
     console.log(`listening on ${listenPort}`)
 })
